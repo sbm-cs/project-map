@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Display a globe on a webpage</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <style>
+        .legend {
+            background-color: #fff;
+            border-radius: 3px;
+            bottom: 30px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            font:
+                12px/20px 'Helvetica Neue',
+                Arial,
+                Helvetica,
+                sans-serif;
+            padding: 10px;
+            position: absolute;
+            right: 10px;
+            z-index: 1;
+        }
+
+        .legend h4 {
+            margin: 0 0 10px;
+        }
+
+        .legend div span {
+            border-radius: 50%;
+            display: inline-block;
+            height: 10px;
+            margin-right: 5px;
+            width: 10px;
+        }
+    </style>
+    <div id="map"></div>
+
+
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1Ijoic2FyYWJyZW50IiwiYSI6ImNtMHpsb2Q4NTAwemoybHExbnB6eHVvZ2kifQ.nH0hUSv3IGzX6MkYB_cSmA';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
+            style: 'mapbox://styles/mapbox/light-v11',
+            zoom: 4,
+            center: [-95.92628992736599,
+                41.255008019767104],
+            projection: 'globe'
+        });
+
+        map.on('load', () => {
+            // Set the default atmosphere style
+            map.setFog({});
+
+            map.addSource('mapillary', {
+                'type': 'vector',
+                'tiles': [
+                    'https://tiles.mapillary.com/maps/vtp/mly1_public/2/{z}/{x}/{y}?access_token=MLY|4142433049200173|72206abe5035850d6743b23a49c41333'
+                ],
+                'minzoom': 8,
+                'maxzoom': 14
+            })
+
+            map.addSource('projects', {
+                type: 'geojson',
+                data: 'projplaces.geojson'
+            });
+
+
+            map.addLayer({
+                id: 'zoning-label',
+                type: 'symbol',
+                source: 'projects',
+                paint: {
+                    'text-color': [
+                        'match',
+                        ['get', 'Service'],
+                        'Housing', '#1E88E5',
+                        'Zoning', 'brown',
+                        '#000000' // default
+
+                        //eventually want to do partial string match to assign color (some are currently "Housing, Zoning")
+                    ],
+                    'text-halo-color': '#ffffff',
+                    'text-halo-width': 1.2,
+                    'text-halo-blur': 0.5
+                },
+                layout: {
+                    'text-field': ['get', 'Project name'],
+                    'text-size': 10,
+                    'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
+                    'text-radial-offset': 0.5,
+                    'text-justify': 'auto'
+                },
+            });
+
+            map.addLayer({
+                id: 'projects-point',
+                type: 'circle',
+                source: 'projects',
+                paint: {
+                    'circle-color': [
+                        'match',
+                        ['get', 'Service'],
+                        'Housing', '#1E88E5',
+                        'Zoning', 'brown',
+                        '#000000' // default
+                    ],
+                }
+            });
+
+
+        });
+
+
+
+    </script>
+
+</body>
+
+</html>
