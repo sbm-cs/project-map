@@ -64,6 +64,7 @@
             // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
             style: 'mapbox://styles/sarabrent/cmacv2cxv001401qra0dp7ao4',
             zoom: 4,
+            maxZoom: 18,
             center: [-95.92628992736599,
                 41.255008019767104],
             projection: 'globe'
@@ -89,21 +90,23 @@
 
 
             map.addLayer({
-                id: 'zoning-label',
+                id: 'projects-label',
                 type: 'symbol',
                 source: 'projects',
+                minzoom: 6,
+                maxzoom: 14,
                 paint: {
                     'text-color': [
                         'match',
                         ['get', 'Service'],
-                        'Housing', '#1E88E5',
-                        'Zoning', '#73a00e',
-                        '#425A70' // default
+                        'Housing', '#000000',
+                        'Zoning', '#000000',
+                        '#000000' // default
 
                         //eventually want to do partial string match to assign color (some are currently "Housing, Zoning")
                     ],
                     'text-halo-color': '#ffffff',
-                    'text-halo-width': 1.2,
+                    'text-halo-width': 5,
                     'text-halo-blur': 0.5
                 },
                 layout: {
@@ -120,6 +123,7 @@
                 type: 'circle',
                 source: 'projects',
                 paint: {
+
                     'circle-color': [
                         'match',
                         ['get', 'Service'],
@@ -127,8 +131,11 @@
                         'Zoning', '#73a00e',
                         '#425A70' // default
                     ],
-                }
-            });
+
+                    'circle-radius': 5,
+                    'circle-stroke-width': 1,
+                    'circle-stroke-color': '#ffffff',
+                }});
 
 
         });
