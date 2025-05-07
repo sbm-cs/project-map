@@ -53,7 +53,13 @@
             width: 10px;
         }
     </style>
-    <div id="map"></div>
+<div id="map"></div>
+<div id="state-legend" class="legend">
+    <div><span style="background-color: #1E88E5"></span>Housing Plan</div>
+    <div><span style="background-color: #73a00e"></span>Zoning</div>
+    <div><span style="background-color: #425A70"></span>Other project type/service</div>
+</div>
+
 
 
 
@@ -62,11 +68,11 @@
         const map = new mapboxgl.Map({
             container: 'map',
             // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
-            style: 'mapbox://styles/sarabrent/cmacv2cxv001401qra0dp7ao4',
+            style: 'mapbox://styles/mapbox/light-v11',
             zoom: 4,
             maxZoom: 18,
-            center: [-95.92628992736599,
-                41.255008019767104],
+            center: [-107.307673,
+            39.973963],
             projection: 'globe'
         });
 
