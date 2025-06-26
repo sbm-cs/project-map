@@ -1,0 +1,50 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": 1,
+        "properties": {
+
+          "homestead": "no"
+        },
+        "geometry": {
+          "coordinates": [
+            -89.21781065552348,
+            37.7274216043115
+          ],
+          "type": "Point"
+        }
+      },
+      {
+        "type": "Feature",
+        "id": 2,
+        "properties": {
+
+          "homestead": "yes"
+        },
+        "geometry": {
+          "coordinates": [
+            -89.21781065552348,
+            37.7274216043115
+          ],
+          "type": "Point"
+        }
+      },
+      {
+        "type": "Feature",
+        "id": 3,
+        "properties": {
+
+          "homestead": "yes"
+        },
+        "geometry": {
+          "coordinates": [
+            -89.21781065552348,
+            37.7274216043115
+          ],
+          "type": "Point"
+        }
+      }
+    ]
+  }

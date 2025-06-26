@@ -53,12 +53,12 @@
             width: 10px;
         }
     </style>
-<div id="map"></div>
-<div id="state-legend" class="legend">
-    <div><span style="background-color: #1E88E5"></span>Housing Plan</div>
-    <div><span style="background-color: #73a00e"></span>Zoning</div>
-    <div><span style="background-color: #425A70"></span>Other project type/service</div>
-</div>
+    <div id="map"></div>
+    <div id="state-legend" class="legend">
+        <div><span style="background-color: #1b2f5a"></span>Housing Plan</div>
+        <div><span style="background-color: #82AC21"></span>Zoning</div>
+        <div><span style="background-color: #A34997"></span>Other project type/service</div>
+    </div>
 
 
 
@@ -72,9 +72,11 @@
             zoom: 4,
             maxZoom: 18,
             center: [-107.307673,
-            39.973963],
+                39.973963],
             projection: 'globe'
         });
+
+
 
         map.on('load', () => {
             // Set the default atmosphere style
@@ -92,6 +94,11 @@
             map.addSource('projects', {
                 type: 'geojson',
                 data: 'projplaces.geojson'
+            });
+
+            map.addSource('homesteadtest', {
+                type: 'geojson',
+                data: 'test.geojson'
             });
 
 
@@ -133,19 +140,20 @@
                     'circle-color': [
                         'match',
                         ['get', 'Service'],
-                        'Housing', '#1E88E5',
-                        'Zoning', '#73a00e',
-                        '#425A70' // default
+                        'Housing', '#1b2f5a',
+                        'Zoning', '#82AC21',
+                        '#A34997' // default
+                        
                     ],
 
-                    'circle-radius': 5,
+                    'circle-radius': 8,
                     'circle-stroke-width': 1,
                     'circle-stroke-color': '#ffffff',
-                }});
+                }
+            });
 
 
         });
-
 
 
     </script>
