@@ -1,163 +1,125 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <meta charset="utf-8">
-    <title>Display a globe on a webpage</title>
-    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.css" rel="stylesheet">
-    <script src="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.js"></script>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-        }
-
-        #map {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 100%;
-        }
-    </style>
+  <meta charset="utf-8">
+  <title>Projects map</title>
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.css" rel="stylesheet">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.js"></script>
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+    .legend { position:absolute; right:10px; bottom:30px; background:#fff; padding:10px; font:12px/20px system-ui,sans-serif; border-radius:6px; box-shadow:0 1px 2px rgba(0,0,0,.1) }
+    .legend div span { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
+  </style>
 </head>
-
 <body>
-    <style>
-        .legend {
-            background-color: #fff;
-            border-radius: 3px;
-            bottom: 30px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-            font:
-                12px/20px 'Helvetica Neue',
-                Arial,
-                Helvetica,
-                sans-serif;
-            padding: 10px;
-            position: absolute;
-            right: 10px;
-            z-index: 1;
-        }
+  <div id="map"></div>
+  <div class="legend" id="state-legend">
+    <div><span style="background-color:#1b2f5a"></span>Housing Plan</div>
+    <div><span style="background-color:#82AC21"></span>Zoning</div>
+    <div><span style="background-color:#A34997"></span>Other project type/service</div>
+  </div>
 
-        .legend h4 {
-            margin: 0 0 10px;
-        }
+<script>
+// 1) ACCESS TOKEN + MAP INIT (this was missing)
+mapboxgl.accessToken = 'pk.eyJ1Ijoic2FyYWJyZW50IiwiYSI6ImNtMHpsb2Q4NTAwemoybHExbnB6eHVvZ2kifQ.nH0hUSv3IGzX6MkYB_cSmA';
+const map = new mapboxgl.Map({
+  container: 'map',
+  style: 'mapbox://styles/mapbox/light-v11',
+  center: [-86, 39], zoom: 5, projection: 'mercator'
+});
 
-        .legend div span {
-            border-radius: 50%;
-            display: inline-block;
-            height: 10px;
-            margin-right: 5px;
-            width: 10px;
-        }
-    </style>
-    <div id="map"></div>
-    <div id="state-legend" class="legend">
-        <div><span style="background-color: #1b2f5a"></span>Housing Plan</div>
-        <div><span style="background-color: #82AC21"></span>Zoning</div>
-        <div><span style="background-color: #A34997"></span>Other project type/service</div>
-    </div>
+// 2) classification helper
+function classifyService(serviceRaw) {
+  const s = (serviceRaw || '').toLowerCase();
+  if (s.includes('zoning')) return 'Zoning';
+  if (s.includes('housing')) return 'Housing Plan';
+  return 'Other project type/service';
+}
 
+// 3) CSV -> GeoJSON (skip blanks/#REF!, add category)
+function csvToGeoJSON(csv) {
+  const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
+  const features = [];
+  for (const row of parsed.data) {
+    const latRaw = (row.lat || '').toString().trim();
+    const lonRaw = (row.long || '').toString().trim();
+    if (!latRaw || !lonRaw) continue;
+    if (latRaw.toUpperCase().includes('REF') || lonRaw.toUpperCase().includes('REF')) continue;
+    const lat = Number(latRaw), lon = Number(lonRaw);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
 
+    features.push({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [lon, lat] },
+      properties: { ...row, category: classifyService(row.service) }
+    });
+  }
+  return { type: 'FeatureCollection', features };
+}
 
+map.on('load', async () => {
+  map.setFog({});
 
-    <script>
-        mapboxgl.accessToken = 'pk.eyJ1Ijoic2FyYWJyZW50IiwiYSI6ImNtMHpsb2Q4NTAwemoybHExbnB6eHVvZ2kifQ.nH0hUSv3IGzX6MkYB_cSmA';
-        const map = new mapboxgl.Map({
-            container: 'map',
-            // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
-            style: 'mapbox://styles/mapbox/light-v11',
-            zoom: 4,
-            maxZoom: 18,
-            center: [-107.307673,
-                39.973963],
-            projection: 'globe'
-        });
+  try {
+    // 4) make sure this filename matches your actual CSV
+    const resp = await fetch('proj.csv');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const csvText = await resp.text();
+    const geojson = csvToGeoJSON(csvText);
+    console.log('Loaded features:', geojson.features.length);
 
+    // 5) add source + layer
+    map.addSource('projects', { type: 'geojson', data: geojson });
+    map.addLayer({
+      id: 'points',
+      type: 'circle',
+      source: 'projects',
+      paint: {
+        'circle-radius': 6,
+        'circle-stroke-width': 1,
+        'circle-stroke-color': '#000',
+        'circle-opacity': 0.9,
+        // use normalized category for exact color mapping
+        'circle-color': [
+          'match',
+          ['get', 'category'],
+          'Housing Plan', '#1b2f5a',
+          'Zoning',       '#82AC21',
+          /* other */     '#A34997'
+        ]
+      }
+    });
 
+    // 7) popups
+map.on('click', 'points', (e) => {
+  const p = e.features[0].properties || {};
+  const descRaw = (p.desc || '').toString().trim();
 
-        map.on('load', () => {
-            // Set the default atmosphere style
-            map.setFog({});
+  // Skip entirely if "Not_applicable"
+  if (descRaw.toLowerCase() === 'not_applicable') {
+    descClean = '';
+  } else {
+    // Remove everything before ": " (if present)
+    const parts = descRaw.split(': ');
+    descClean = (parts.length > 1 ? parts.slice(1).join(': ') : descRaw).trim();
+  }
 
-            map.addSource('mapillary', {
-                'type': 'vector',
-                'tiles': [
-                    'https://tiles.mapillary.com/maps/vtp/mly1_public/2/{z}/{x}/{y}?access_token=MLY|4142433049200173|72206abe5035850d6743b23a49c41333'
-                ],
-                'minzoom': 8,
-                'maxzoom': 14
-            })
+  const html = `
+    <div style="font:12px/1.4 system-ui,sans-serif">
+      <div style="font-weight:600;margin-bottom:4px">${p.proj || 'Untitled project'}</div>
+      ${descClean ? `<div style="margin-top:6px">${descClean}</div>` : ''}
+    </div>`;
 
-            map.addSource('projects', {
-                type: 'geojson',
-                data: 'projplaces.geojson'
-            });
-
-            map.addSource('homesteadtest', {
-                type: 'geojson',
-                data: 'test.geojson'
-            });
-
-
-            map.addLayer({
-                id: 'projects-label',
-                type: 'symbol',
-                source: 'projects',
-                minzoom: 6,
-                maxzoom: 14,
-                paint: {
-                    'text-color': [
-                        'match',
-                        ['get', 'Service'],
-                        'Housing', '#000000',
-                        'Zoning', '#000000',
-                        '#000000' // default
-
-                        //eventually want to do partial string match to assign color (some are currently "Housing, Zoning")
-                    ],
-                    'text-halo-color': '#ffffff',
-                    'text-halo-width': 5,
-                    'text-halo-blur': 0.5
-                },
-                layout: {
-                    'text-field': ['get', 'Project name'],
-                    'text-size': 10,
-                    'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
-                    'text-radial-offset': 0.5,
-                    'text-justify': 'auto'
-                },
-            });
-
-            map.addLayer({
-                id: 'projects-point',
-                type: 'circle',
-                source: 'projects',
-                paint: {
-
-                    'circle-color': [
-                        'match',
-                        ['get', 'Service'],
-                        'Housing', '#1b2f5a',
-                        'Zoning', '#82AC21',
-                        '#A34997' // default
-                        
-                    ],
-
-                    'circle-radius': 8,
-                    'circle-stroke-width': 1,
-                    'circle-stroke-color': '#ffffff',
-                }
-            });
-
-
-        });
-
-
-    </script>
-
+  new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
+});
+    map.on('mouseenter', 'points', () => map.getCanvas().style.cursor = 'pointer');
+    map.on('mouseleave', 'points', () => map.getCanvas().style.cursor = '');
+  } catch (e) {
+    console.error('CSV load error:', e);
+  }
+});
+</script>
 </body>
-
 </html>
