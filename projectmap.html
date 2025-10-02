@@ -19,7 +19,7 @@
 </head>
 <body>
   <div id="map"></div>
-  <button class="reset-btn" onclick="resetView()">Reset View</button>
+  <button class="reset-btn" onclick="resetView()">Reset map</button>
   <div class="legend" id="state-legend">
     <div><span style="background-color:#1b2f5a"></span>Housing Plan</div>
     <div><span style="background-color:#82AC21"></span>Zoning</div>
@@ -39,6 +39,14 @@ const map = new mapboxgl.Map({
 
 // Reset view function
 window.resetView = function() {
+  // Close any open popups
+  const popups = document.getElementsByClassName('mapboxgl-popup');
+  if (popups.length) {
+    for (let i = 0; i < popups.length; i++) {
+      popups[i].remove();
+    }
+  }
+
   map.flyTo({
     center: initialCenter,
     zoom: initialZoom,
