@@ -7,10 +7,12 @@
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.css" rel="stylesheet">
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.js"></script>
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet">
   <style>
     html, body, #map { height: 100%; margin: 0; }
     .legend { position:absolute; right:10px; bottom:30px; background:#fff; padding:10px; font:12px/20px system-ui,sans-serif; border-radius:6px; box-shadow:0 1px 2px rgba(0,0,0,.1) }
     .legend div span { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
+    .mapboxgl-popup-close-button { display: none; }
   </style>
 </head>
 <body>
@@ -71,45 +73,85 @@ map.on('load', async () => {
     console.log('Loaded features:', geojson.features.length);
 
     // 5) add source + layer
-    map.addSource('projects', { type: 'geojson', data: geojson });
+    map.addSource('projects', { type: 'geojson', data: 'projplaces3.geojson' });
     map.addLayer({
       id: 'points',
       type: 'circle',
       source: 'projects',
       paint: {
-        'circle-radius': 6,
+        'circle-radius': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          4, 5,
+          8, 6,
+          12, 9
+        ],
         'circle-stroke-width': 1,
-        'circle-stroke-color': '#000',
+        'circle-stroke-color': 'white',
         'circle-opacity': 0.9,
         // use normalized category for exact color mapping
         'circle-color': [
-          'match',
-          ['get', 'category'],
-          'Housing Plan', '#1b2f5a',
-          'Zoning',       '#82AC21',
-          /* other */     '#A34997'
+          'case',
+          // If Service contains both 'housing' and 'zoning', use housing plan color
+          ['all',
+            ['in', 'housing', ['downcase', ['coalesce', ['get', 'Service'], '']]],
+            ['in', 'zoning', ['downcase', ['coalesce', ['get', 'Service'], '']]]
+          ],
+          '#1b2f5a',
+          // If Service contains 'housing', use housing plan color
+          ['in', 'housing', ['downcase', ['coalesce', ['get', 'Service'], '']]],
+          '#1b2f5a',
+          // If Service contains 'zoning', use zoning color
+          ['in', 'zoning', ['downcase', ['coalesce', ['get', 'Service'], '']]],
+          '#82AC21',
+          // Default: other project type/service
+          '#A34997'
         ]
+      }
+    });
+
+    // 6) add labels layer
+    map.addLayer({
+      id: 'labels',
+      type: 'symbol',
+      source: 'projects',
+      minzoom: 6,
+      maxzoom: 12,
+      layout: {
+        'text-field': ['get', 'NameLocation'],
+        'text-font': ['Roboto Condensed', 'Arial Unicode MS Regular'],
+        'text-size': 12,
+        'text-offset': [0, 1],
+        'text-anchor': 'top'
+      },
+      paint: {
+        'text-color': '#000000',
+        'text-halo-color': '#ffffff',
+        'text-halo-width': 1
       }
     });
 
     // 7) popups
 map.on('click', 'points', (e) => {
   const p = e.features[0].properties || {};
-  const descRaw = (p.desc || '').toString().trim();
 
-  // Skip entirely if "Not_applicable"
-  if (descRaw.toLowerCase() === 'not_applicable') {
-    descClean = '';
-  } else {
-    // Remove everything before ": " (if present)
-    const parts = descRaw.split(': ');
-    descClean = (parts.length > 1 ? parts.slice(1).join(': ') : descRaw).trim();
+  // Extract text after ': ' from Resume blurb
+  let description = '';
+  if (p['Resume blurb']) {
+    const parts = p['Resume blurb'].split(': ');
+    description = parts.length > 1 ? parts.slice(1).join(': ').trim() : '';
   }
 
+  // Check for CS blog link
+  const blogLink = p['CS blog link'] && p['CS blog link'].toLowerCase() !== 'not_applicable' ? p['CS blog link'] : '';
+
   const html = `
-    <div style="font:12px/1.4 system-ui,sans-serif">
-      <div style="font-weight:600;margin-bottom:4px">${p.proj || 'Untitled'}</div>
-      ${descClean ? `<div style="margin-top:6px">${descClean}</div>` : ''}
+    <div style="font-family:Roboto,sans-serif;font-size:12px;line-height:1.4">
+      <div style="font-family:'Roboto Condensed',sans-serif;font-weight:700;font-size:14px;margin-bottom:4px">${p.Project || 'Untitled'}</div>
+      ${p.Service ? `<div style="margin-top:4px"><strong>Service:</strong> ${p.Service}</div>` : ''}
+      ${description ? `<div style="margin-top:4px"><strong>Description:</strong> ${description}</div>` : ''}
+      ${blogLink ? `<div style="margin-top:6px"><a href="${blogLink}" target="_blank" style="color:#1b2f5a;text-decoration:none">Learn more →</a></div>` : ''}
     </div>`;
 
   new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
