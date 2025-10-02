@@ -13,10 +13,13 @@
     .legend { position:absolute; right:10px; bottom:30px; background:#fff; padding:10px; font:12px/20px system-ui,sans-serif; border-radius:6px; box-shadow:0 1px 2px rgba(0,0,0,.1) }
     .legend div span { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
     .mapboxgl-popup-close-button { display: none; }
+    .reset-btn { position:absolute; top:10px; right:10px; background:#fff; padding:8px 12px; font:12px Roboto,sans-serif; border:none; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,.1); cursor:pointer; }
+    .reset-btn:hover { background:#f5f5f5; }
   </style>
 </head>
 <body>
   <div id="map"></div>
+  <button class="reset-btn" onclick="resetView()">Reset View</button>
   <div class="legend" id="state-legend">
     <div><span style="background-color:#1b2f5a"></span>Housing Plan</div>
     <div><span style="background-color:#82AC21"></span>Zoning</div>
@@ -26,11 +29,22 @@
 <script>
 // 1) ACCESS TOKEN + MAP INIT (this was missing)
 mapboxgl.accessToken = 'pk.eyJ1Ijoic2FyYWJyZW50IiwiYSI6ImNtMHpsb2Q4NTAwemoybHExbnB6eHVvZ2kifQ.nH0hUSv3IGzX6MkYB_cSmA';
+const initialCenter = [-86, 39];
+const initialZoom = 5;
 const map = new mapboxgl.Map({
   container: 'map',
   style: 'mapbox://styles/mapbox/light-v11',
-  center: [-86, 39], zoom: 5, projection: 'mercator'
+  center: initialCenter, zoom: initialZoom, projection: 'mercator'
 });
+
+// Reset view function
+window.resetView = function() {
+  map.flyTo({
+    center: initialCenter,
+    zoom: initialZoom,
+    essential: true
+  });
+};
 
 // 2) classification helper
 function classifyService(serviceRaw) {
@@ -132,18 +146,91 @@ map.on('load', async () => {
       }
     });
 
-    // 7) popups
+    // 7) popups with multi-feature handling
 map.on('click', 'points', (e) => {
-  const p = e.features[0].properties || {};
+  const allFeatures = map.queryRenderedFeatures(e.point, { layers: ['points'] });
 
-  // Extract text after ': ' from Resume blurb
+  // Deduplicate features based on Project name (in case same feature is rendered multiple times)
+  const seen = new Set();
+  const deduped = allFeatures.filter(f => {
+    const key = f.properties.Project;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // Get the CentroidPlace of the first clicked feature
+  const clickedPlace = deduped[0]?.properties.CentroidPlace;
+
+  // Filter to only include features from the same CentroidPlace
+  const features = deduped.filter(f => f.properties.CentroidPlace === clickedPlace);
+
+  // Sort features alphabetically by Project name
+  features.sort((a, b) => {
+    const nameA = (a.properties.Project || '').toLowerCase();
+    const nameB = (b.properties.Project || '').toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
+  // If multiple features at same location, show list
+  if (features.length > 1) {
+    let html = '<div style="font-family:Roboto,sans-serif;font-size:12px;line-height:1.4">';
+
+    features.forEach((feature, i) => {
+      const p = feature.properties;
+
+      let description = '';
+      if (p['Resume blurb']) {
+        const parts = p['Resume blurb'].split(': ');
+        description = parts.length > 1 ? parts.slice(1).join(': ').trim() : '';
+      }
+
+      const blogLink = p['CS blog link'] && p['CS blog link'].toLowerCase() !== 'not_applicable' ? p['CS blog link'] : '';
+
+      html += `<div style="padding:8px 0;border-top:1px solid #eee">
+        <div style="font-family:'Roboto Condensed',sans-serif;font-weight:700;font-size:14px;margin-bottom:4px">${p.Project || 'Untitled'}</div>
+        ${p.Service ? `<div style="margin-top:4px"><strong>Service:</strong> ${p.Service}</div>` : ''}
+        ${description ? `<div style="margin-top:4px"><strong>Description:</strong> ${description}</div>` : ''}
+        ${blogLink ? `<div style="margin-top:6px"><a href="${blogLink}" target="_blank" style="color:#1b2f5a;text-decoration:none">Learn more →</a></div>` : ''}
+      </div>`;
+    });
+    html += '</div>';
+
+    new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
+  } else {
+    // Single feature - show full popup
+    const p = features[0].properties;
+
+    let description = '';
+    if (p['Resume blurb']) {
+      const parts = p['Resume blurb'].split(': ');
+      description = parts.length > 1 ? parts.slice(1).join(': ').trim() : '';
+    }
+
+    const blogLink = p['CS blog link'] && p['CS blog link'].toLowerCase() !== 'not_applicable' ? p['CS blog link'] : '';
+
+    const html = `
+      <div style="font-family:Roboto,sans-serif;font-size:12px;line-height:1.4">
+        <div style="font-family:'Roboto Condensed',sans-serif;font-weight:700;font-size:14px;margin-bottom:4px">${p.Project || 'Untitled'}</div>
+        ${p.Service ? `<div style="margin-top:4px"><strong>Service:</strong> ${p.Service}</div>` : ''}
+        ${description ? `<div style="margin-top:4px"><strong>Description:</strong> ${description}</div>` : ''}
+        ${blogLink ? `<div style="margin-top:6px"><a href="${blogLink}" target="_blank" style="color:#1b2f5a;text-decoration:none">Learn more →</a></div>` : ''}
+      </div>`;
+
+    new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
+  }
+});
+
+// Helper function for showing single popup from list
+window.showSinglePopup = function(index, features, lngLat) {
+  const p = features[index];
+
   let description = '';
   if (p['Resume blurb']) {
     const parts = p['Resume blurb'].split(': ');
     description = parts.length > 1 ? parts.slice(1).join(': ').trim() : '';
   }
 
-  // Check for CS blog link
   const blogLink = p['CS blog link'] && p['CS blog link'].toLowerCase() !== 'not_applicable' ? p['CS blog link'] : '';
 
   const html = `
@@ -152,10 +239,11 @@ map.on('click', 'points', (e) => {
       ${p.Service ? `<div style="margin-top:4px"><strong>Service:</strong> ${p.Service}</div>` : ''}
       ${description ? `<div style="margin-top:4px"><strong>Description:</strong> ${description}</div>` : ''}
       ${blogLink ? `<div style="margin-top:6px"><a href="${blogLink}" target="_blank" style="color:#1b2f5a;text-decoration:none">Learn more →</a></div>` : ''}
+      <div style="margin-top:8px;padding-top:6px;border-top:1px solid #eee;font-size:11px;color:#666;cursor:pointer" onclick="history.back()">← Back to list</div>
     </div>`;
 
-  new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
-});
+  new mapboxgl.Popup().setLngLat(lngLat).setHTML(html).addTo(map);
+};
     map.on('mouseenter', 'points', () => map.getCanvas().style.cursor = 'pointer');
     map.on('mouseleave', 'points', () => map.getCanvas().style.cursor = '');
   } catch (e) {
