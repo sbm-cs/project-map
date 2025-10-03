@@ -10,16 +10,23 @@
   <link href="https://fonts.googleapis.com/css2?family=Roboto&family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet">
   <style>
     html, body, #map { height: 100%; margin: 0; }
-    .legend { position:absolute; right:10px; bottom:30px; background:#fff; padding:10px; font:12px/20px system-ui,sans-serif; border-radius:6px; box-shadow:0 1px 2px rgba(0,0,0,.1) }
+    .legend { position:absolute; right:10px; bottom:30px; background:#fff; padding:10px; font:12px/20px Roboto,sans-serif; border-radius:6px; box-shadow:0 1px 2px rgba(0,0,0,.1) }
     .legend div span { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
     .mapboxgl-popup-close-button { display: none; }
     .reset-btn { position:absolute; top:10px; right:10px; background:#fff; padding:8px 12px; font:12px Roboto,sans-serif; border:none; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,.1); cursor:pointer; }
     .reset-btn:hover { background:#f5f5f5; }
+    .zoom-controls { position:absolute; top:50px; right:10px; display:flex; flex-direction:column; gap:4px; }
+    .zoom-btn { background:#fff; width:32px; height:32px; font:18px Roboto,sans-serif; border:none; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,.1); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .zoom-btn:hover { background:#f5f5f5; }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <button class="reset-btn" onclick="resetView()">Reset map</button>
+  <div class="zoom-controls">
+    <button class="zoom-btn" onclick="map.zoomIn()">+</button>
+    <button class="zoom-btn" onclick="map.zoomOut()">−</button>
+  </div>
   <div class="legend" id="state-legend">
     <div><span style="background-color:#1b2f5a"></span>Housing Plan</div>
     <div><span style="background-color:#82AC21"></span>Zoning</div>
@@ -30,7 +37,7 @@
 // 1) ACCESS TOKEN + MAP INIT (this was missing)
 mapboxgl.accessToken = 'pk.eyJ1Ijoic2FyYWJyZW50IiwiYSI6ImNtMHpsb2Q4NTAwemoybHExbnB6eHVvZ2kifQ.nH0hUSv3IGzX6MkYB_cSmA';
 const initialCenter = [-86, 39];
-const initialZoom = 4.5;
+const initialZoom = 4;
 const map = new mapboxgl.Map({
   container: 'map',
   style: 'mapbox://styles/mapbox/light-v11',
